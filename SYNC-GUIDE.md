@@ -6,241 +6,176 @@
 
 原始仓库：https://github.com/coze-dev/coze-studio.git
 
-## 🤖 自动同步 (GitHub Actions)
+## 🌿 简化的分支结构
 
-### ✅ 已配置的自动化
+### 仅需2个分支！
 
-你的仓库已配置GitHub Actions实现**云端自动同步**：
-
-1. **sync-upstream.yml** - 基础自动同步
-   - 每天UTC 0点（北京时间8点）自动运行
-   - 检测到上游更新时自动同步到upstream-sync分支
-   - 可手动触发强制同步
-
-2. **sync-with-pr.yml** - 带PR的自动同步
-   - 每天自动运行
-   - 同步后自动创建Pull Request审核变更
-   - 适合需要代码审查的场景
-
-### 🔍 查看工作流状态
-
-访问：https://github.com/Zhangyuc2025/my-coze-studio/actions
-
-### ⚡ 手动触发同步
-
-在GitHub Actions页面选择工作流 → 点击 "Run workflow"
-
-### 🎯 优势
-
-- ✅ **完全自动化** - 无需手动运行脚本
-- ✅ **每天更新** - 定时同步上游最新代码
-- ✅ **即时通知** - 同步完成后可在Actions查看日志
-- ✅ **可追溯** - 每次同步都有详细记录和日志
-- ✅ **标签标记** - 同步后自动创建标签便于追踪
-
-### 🔄 本地同步 vs 云端自动同步
-
-| 方式 | 触发条件 | 优点 | 适用场景 |
-|------|----------|------|----------|
-| **GitHub Actions** | 每天自动/手动触发 | 全自动、云端运行 | 日常维护、持续集成 |
-| **本地脚本** | 手动运行 | 灵活控制、即时同步 | 开发时需要立即更新 |
-
-**推荐**：GitHub Actions负责日常自动同步，本地脚本作为备用方案。
-
-## 🌿 分支结构
-
-### 本地分支
-- **main**: 你的主分支，与上游同步
-- **upstream-sync**: 专门用于自动同步原项目的分支
-- **feature/\***: 基于upstream-sync的各种开发分支
-
-### 远程分支
-- **origin/main**: 你的主分支
-- **origin/upstream-sync**: 你的同步分支
-- **origin/feature/***: 你的开发分支
-- **upstream/main**: 原项目的主分支
-
-## 🔄 日常开发工作流
-
-### 1. 同步上游更新
-
-当原项目有更新时，执行：
-```bash
-./sync-upstream.sh
+#### 1. **upstream-sync** - 同步专用分支
+```
+├── 跟踪：upstream/main
+├── 推送：origin/upstream-sync
+├── 作用：专门同步原项目代码
+├── 更新：GitHub Actions自动维护（每天UTC 0点）
+└── ⚠️ 勿直接在此分支开发
 ```
 
-这个脚本会：
-- 检查上游是否有新更新
-- 自动同步到upstream-sync分支
-- 推送到你的远程仓库
-
-### 2. 创建新功能分支
-
-```bash
-# 基于upstream-sync创建新分支
-git checkout upstream-sync
-git checkout -b feature/your-feature-name
-
-# 推送到远程
-git push origin feature/your-feature-name
+#### 2. **main** - 开发分支
+```
+├── 基础：upstream-sync
+├── 推送：origin/main
+├── 包含：上游代码 + 你的开发代码
+├── 作用：所有开发工作
+└── ✅ 在此分支开发或创建feature分支
 ```
 
-### 3. 开发功能
+## 🤖 自动同步机制
+
+### GitHub Actions 工作流
+
+**sync-upstream.yml** - 自动同步
+- 每天UTC 0点（北京时间8点）自动运行
+- 从 `upstream/main` 同步到 `upstream-sync` 分支
+- 自动推送到 `origin/upstream-sync`
+- 可手动触发：https://github.com/Zhangyuc2025/my-coze-studio/actions
+
+### 同步流程
+
+```
+原项目 (upstream/main)
+      ↓ GitHub Actions 自动
+upstream-sync 分支
+      ↓ 手动合并
+main 分支
+      ↓ 推送
+origin/main
+```
+
+## 🔄 开发工作流
+
+### 日常开发（推荐）
 
 ```bash
-# 在你的功能分支上开发
+# 1. 开发前先同步上游
+# GitHub Actions已自动完成，或手动触发同步
+
+# 2. 在main分支开发
+git checkout main
+git pull origin main
+
+# 3. 开发你的功能
 git add .
 git commit -m "feat: your feature"
-git push origin feature/your-feature-name
+git push origin main
+
+# 4. 或创建feature分支开发
+git checkout -b feature/new-feature
+git push origin feature/new-feature
 ```
 
-### 4. 合并上游更新到功能分支
+### 手动合并上游更新（当需要时）
 
 ```bash
-# 切换到功能分支
-git checkout feature/your-feature-name
-
-# 合并upstream-sync的更新
-git merge upstream-sync
-
-# 解决冲突（如果有）
-git add .
-git commit -m "resolve merge conflicts"
-
-# 推送更新
-git push origin feature/your-feature-name
-```
-
-## 🔧 手动同步命令
-
-如果你想手动同步：
-
-```bash
-# 1. 切换到同步分支
-git checkout upstream-sync
-
-# 2. 获取上游更新
+# 1. 确保upstream-sync是最新的（GitHub Actions已处理）
+# 或手动同步：
 git fetch upstream
-
-# 3. 硬重置到上游最新
+git checkout upstream-sync
 git reset --hard upstream/main
-
-# 4. 强制推送到你的远程
 git push -f origin upstream-sync
 
-# 5. 合并到你的开发分支
-git checkout your-feature-branch
+# 2. 合并到main分支
+git checkout main
 git merge upstream-sync
+
+# 3. 解决冲突（如果有）
+git add .
+git commit -m "resolve merge conflicts"
+git push origin main
 ```
 
 ## 📋 常见操作
 
 ### 查看分支状态
 ```bash
-git branch -a
+git branch -vv
 ```
 
-### 查看远程信息
+### 查看分支差异
 ```bash
-git remote -v
+# 查看main比upstream-sync多哪些提交
+git log upstream-sync..main --oneline
+
+# 查看上游最新提交
+git log upstream/main --oneline -5
 ```
 
-### 查看上游更新
+### 创建新功能分支
 ```bash
-git log upstream/main --oneline -10
+# 基于main创建
+git checkout main
+git checkout -b feature/your-feature
+git push origin feature/your-feature
 ```
 
-### 切换分支
+### 删除分支
 ```bash
-git checkout branch-name
+# 删除本地分支
+git branch -D feature/branch-name
+
+# 删除远程分支
+git push origin --delete feature/branch-name
 ```
 
-## ⚠️ 注意事项
+## ⚠️ 重要提醒
 
-1. **upstream-sync分支是同步专用分支，请勿直接在此分支上开发**
-2. **开发请基于upstream-sync创建新分支**
-3. **同步时会强制推送，可能覆盖upstream-sync上的本地更改**
-4. **合并上游更新前，请确保你的工作已提交**
+1. **upstream-sync是只读同步分支**
+   - 不要在此分支上开发或提交
+   - GitHub Actions会强制推送覆盖
+
+2. **main分支是开发分支**
+   - 所有开发工作在main或基于main的分支上进行
+   - main包含上游代码 + 你的开发代码
+
+3. **同步策略**
+   - GitHub Actions自动维护upstream-sync与上游同步
+   - 你手动决定何时将upstream-sync合并到main
+   - 建议定期（每周或每月）合并一次
+
+## 🎯 推荐节奏
+
+1. **每天**：GitHub Actions自动同步上游到upstream-sync
+2. **每周**：检查upstream-sync的更新，考虑合并到main
+3. **开发时**：在main分支直接开发，或创建feature分支
+4. **发布前**：确保main分支包含最新上游代码
+
+## 🔍 查看同步状态
+
+- **GitHub Actions**: https://github.com/Zhangyuc2025/my-coze-studio/actions
+- **upstream-sync分支**: https://github.com/Zhangyuc2025/my-coze-studio/tree/upstream-sync
+- **对比上游变更**: https://github.com/Zhangyuc2025/my-coze-studio/compare/upstream-sync...main
 
 ## 🆘 遇到问题？
 
-### 同步失败
+### 强制重新同步upstream-sync
 ```bash
-# 强制重新同步
 git checkout upstream-sync
 git fetch upstream
 git reset --hard upstream/main
 git push -f origin upstream-sync
 ```
 
-### 恢复误删的分支
+### 重置main分支到upstream-sync
 ```bash
-# 查看所有分支（包括已删除的）
-git reflog
-
-# 恢复分支
-git checkout -b branch-name commit-hash
-```
-
-### 重置到上游最新
-```bash
-git fetch upstream
-git reset --hard upstream/main
+git checkout main
+git reset --hard upstream-sync
 git push -f origin main
 ```
 
-## 📝 脚本和文件说明
-
-### 本地脚本
-- **setup-sync.sh**: 初始设置脚本（已执行，可重复使用）
-- **sync-upstream.sh**: 日常手动同步脚本（备用方案）
-
-### GitHub Actions工作流
-- **.github/workflows/sync-upstream.yml**: 基础自动同步
-  - 每天UTC 0点自动运行
-  - 检测到上游更新时自动同步到upstream-sync分支
-  - 强制推送更新并创建标签
-
-- **.github/workflows/sync-with-pr.yml**: 带PR的自动同步
-  - 每天自动运行
-  - 同步后自动创建Pull Request
-  - 适合需要代码审查的团队
-
-### 文档
-- **SYNC-GUIDE.md**: 本使用指南
-- **SYNC-GUIDE.md**: 详细操作文档
-
-## 🎯 推荐工作流
-
-### 云端自动同步模式（推荐）
-
-1. **GitHub Actions自动同步**：每天UTC 0点自动运行，无需手动操作
-   - 查看同步状态：https://github.com/Zhangyuc2025/my-coze-studio/actions
-   - 手动触发：在Actions页面点击 "Run workflow"
-
-2. **开发新功能**：
-   ```bash
-   git checkout upstream-sync
-   git checkout -b feature/your-feature
-   git push origin feature/your-feature
-   ```
-
-3. **定期合并更新**：
-   ```bash
-   git checkout feature/your-feature
-   git merge upstream-sync
-   # 解决冲突后提交
-   git push origin feature/your-feature
-   ```
-
-### 手动同步模式（备用）
-
-如果需要立即同步或GitHub Actions未运行时：
-
-1. **手动同步**：`./sync-upstream.sh`
-2. **开发新功能**：同上
-3. **合并更新**：同上
+### 查看详细日志
+```bash
+# 查看GitHub Actions运行日志
+# 访问：https://github.com/Zhangyuc2025/my-coze-studio/actions
+```
 
 ---
 
-🚀 享受你的开发之旅！
+**🎉 简单、高效、自动化！**
