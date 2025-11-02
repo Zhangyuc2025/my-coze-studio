@@ -6,6 +6,47 @@
 
 原始仓库：https://github.com/coze-dev/coze-studio.git
 
+## 🤖 自动同步 (GitHub Actions)
+
+### ✅ 已配置的自动化
+
+你的仓库已配置GitHub Actions实现**云端自动同步**：
+
+1. **sync-upstream.yml** - 基础自动同步
+   - 每天UTC 0点（北京时间8点）自动运行
+   - 检测到上游更新时自动同步到upstream-sync分支
+   - 可手动触发强制同步
+
+2. **sync-with-pr.yml** - 带PR的自动同步
+   - 每天自动运行
+   - 同步后自动创建Pull Request审核变更
+   - 适合需要代码审查的场景
+
+### 🔍 查看工作流状态
+
+访问：https://github.com/Zhangyuc2025/my-coze-studio/actions
+
+### ⚡ 手动触发同步
+
+在GitHub Actions页面选择工作流 → 点击 "Run workflow"
+
+### 🎯 优势
+
+- ✅ **完全自动化** - 无需手动运行脚本
+- ✅ **每天更新** - 定时同步上游最新代码
+- ✅ **即时通知** - 同步完成后可在Actions查看日志
+- ✅ **可追溯** - 每次同步都有详细记录和日志
+- ✅ **标签标记** - 同步后自动创建标签便于追踪
+
+### 🔄 本地同步 vs 云端自动同步
+
+| 方式 | 触发条件 | 优点 | 适用场景 |
+|------|----------|------|----------|
+| **GitHub Actions** | 每天自动/手动触发 | 全自动、云端运行 | 日常维护、持续集成 |
+| **本地脚本** | 手动运行 | 灵活控制、即时同步 | 开发时需要立即更新 |
+
+**推荐**：GitHub Actions负责日常自动同步，本地脚本作为备用方案。
+
 ## 🌿 分支结构
 
 ### 本地分支
@@ -148,17 +189,57 @@ git reset --hard upstream/main
 git push -f origin main
 ```
 
-## 📝 脚本说明
+## 📝 脚本和文件说明
 
-- **setup-sync.sh**: 初始设置脚本（已执行）
-- **sync-upstream.sh**: 日常同步脚本
+### 本地脚本
+- **setup-sync.sh**: 初始设置脚本（已执行，可重复使用）
+- **sync-upstream.sh**: 日常手动同步脚本（备用方案）
+
+### GitHub Actions工作流
+- **.github/workflows/sync-upstream.yml**: 基础自动同步
+  - 每天UTC 0点自动运行
+  - 检测到上游更新时自动同步到upstream-sync分支
+  - 强制推送更新并创建标签
+
+- **.github/workflows/sync-with-pr.yml**: 带PR的自动同步
+  - 每天自动运行
+  - 同步后自动创建Pull Request
+  - 适合需要代码审查的团队
+
+### 文档
+- **SYNC-GUIDE.md**: 本使用指南
+- **SYNC-GUIDE.md**: 详细操作文档
 
 ## 🎯 推荐工作流
 
-1. **每天开始工作前**：运行 `./sync-upstream.sh` 同步最新代码
-2. **开发新功能**：创建新的feature分支
-3. **定期同步**：每天或每周将upstream-sync合并到你的功能分支
-4. **提交代码**：在功能分支上提交和推送
+### 云端自动同步模式（推荐）
+
+1. **GitHub Actions自动同步**：每天UTC 0点自动运行，无需手动操作
+   - 查看同步状态：https://github.com/Zhangyuc2025/my-coze-studio/actions
+   - 手动触发：在Actions页面点击 "Run workflow"
+
+2. **开发新功能**：
+   ```bash
+   git checkout upstream-sync
+   git checkout -b feature/your-feature
+   git push origin feature/your-feature
+   ```
+
+3. **定期合并更新**：
+   ```bash
+   git checkout feature/your-feature
+   git merge upstream-sync
+   # 解决冲突后提交
+   git push origin feature/your-feature
+   ```
+
+### 手动同步模式（备用）
+
+如果需要立即同步或GitHub Actions未运行时：
+
+1. **手动同步**：`./sync-upstream.sh`
+2. **开发新功能**：同上
+3. **合并更新**：同上
 
 ---
 
