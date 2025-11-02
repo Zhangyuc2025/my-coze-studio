@@ -1,0 +1,109 @@
+name: 🔄 Auto Sync Upstream
+
+on:
+  # 每天 UTC 0点 (北京时间 8点) 自动运行
+  schedule:
+    - cron: '0 0 * * *'
+
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      force_sync:
+        description: 'Force sync even if no changes detected'
+        required: false
+        default: 'false'
+        type: boolean
+
+  # 当 upstream/main 有新提交时触发
+  push:
+    branches:
+      - upstream/main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: 🔧 Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: ⬇️ Fetch upstream repository
+        run: |
+          git remote add upstream https://github.com/coze-dev/coze-studio.git
+          git fetch upstream main
+
+      - name: 🔍 Check for changes
+        id: check
+        run: |
+          UPSTREAM_SHA=$(git rev-parse upstream/main)
+          CURRENT_SHA=$(git rev-parse HEAD)
+
+          echo "upstream_sha=$UPSTREAM_SHA" >> $GITHUB_OUTPUT
+          echo "current_sha=$CURRENT_SHA" >> $GITHUB_OUTPUT
+
+          if [ "$UPSTREAM_SHA" != "$CURRENT_SHA" ] || [ "${{ github.event.inputs.force_sync }}" == "true" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🔄 Sync to upstream-sync branch
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          # 创建或切换到 upstream-sync 分支
+          if git show-ref --verify --quiet refs/heads/upstream-sync; then
+            git checkout upstream-sync
+            git reset --hard upstream/main
+          else
+            git checkout -b upstream-sync upstream/main
+          fi
+
+          # 推送到远程
+          git push -f origin upstream-sync
+
+      - name: 📊 Create sync summary
+        if: always()
+        run: |
+          echo "## 🔄 Upstream Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**执行时间**: $(date)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check.outputs.has_changes }}" == "true" ]; then
+            echo "✅ **状态**: 同步完成" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- 上游最新提交: \`${{ steps.check.outputs.upstream_sha }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "- 本地提交: \`${{ steps.check.outputs.current_sha }}\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "已推送到 `origin/upstream-sync` 分支" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ **状态**: 没有新更新" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "当前分支已是最新，无需同步" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 🏷️ Create tag on sync (optional)
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          TAG_NAME="sync-$(date +%Y%m%d-%H%M%S)"
+          git tag -a "$TAG_NAME" -m "Auto sync from upstream on $(date)"
+          git push origin "$TAG_NAME"
+
+      - name: 📢 Notify success
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          echo "🎉 同步完成！"
+          echo "新代码已推送到 upstream-sync 分支"
+          echo ""
+          echo "🔗 快速链接:"
+          echo "- 仓库: https://github.com/${{ github.repository }}"
+          echo "- upstream-sync 分支: https://github.com/${{ github.repository }}/tree/upstream-sync"
+          echo "- 对比变更: https://github.com/${{ github.repository }}/compare/main...upstream-sync"

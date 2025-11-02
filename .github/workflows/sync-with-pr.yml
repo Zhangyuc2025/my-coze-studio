@@ -1,0 +1,92 @@
+name: 🔄 Sync with PR
+
+on:
+  # 每天 UTC 0点 (北京时间 8点) 自动运行
+  schedule:
+    - cron: '0 0 * * *'
+
+  # 手动触发
+  workflow_dispatch:
+
+jobs:
+  sync-and-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: 🔧 Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: ⬇️ Fetch upstream repository
+        run: |
+          git remote add upstream https://github.com/coze-dev/coze-studio.git
+          git fetch upstream main
+
+      - name: 🔍 Check for changes
+        id: check
+        run: |
+          UPSTREAM_SHA=$(git rev-parse upstream/main)
+          CURRENT_SHA=$(git rev-parse HEAD)
+
+          echo "upstream_sha=$UPSTREAM_SHA" >> $GITHUB_OUTPUT
+          echo "current_sha=$CURRENT_SHA" >> $GITHUB_OUTPUT
+
+          if [ "$UPSTREAM_SHA" != "$CURRENT_SHA" ]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🔄 Create upstream-sync branch and push
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          # 创建或切换到 upstream-sync 分支
+          if git show-ref --verify --quiet refs/heads/upstream-sync; then
+            git checkout upstream-sync
+            git reset --hard upstream/main
+          else
+            git checkout -b upstream-sync upstream/main
+          fi
+
+          # 推送到远程
+          git push -f origin upstream-sync
+
+      - name: 📝 Create Pull Request
+        if: steps.check.outputs.has_changes == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: sync-upstream-sync
+          base: upstream-sync
+          title: '🔄 Auto sync from upstream'
+          body: |
+            ## 🔄 自动同步上游更新
+
+            此PR自动生成，用于同步上游仓库的最新变更。
+
+            ### 📊 同步信息
+            - **上游最新提交**: `${{ steps.check.outputs.upstream_sha }}`
+            - **当前提交**: `${{ steps.check.outputs.current_sha }}`
+            - **执行时间**: $(date)
+
+            ### 📝 变更日志
+            ```
+            $(git log --oneline ${{ steps.check.outputs.current_sha }}..${{ steps.check.outputs.upstream_sha }})
+            ```
+
+            ### ✅ 下一步
+            - [ ] 审核变更
+            - [ ] 合并到 `upstream-sync` 分支
+            - [ ] 在你的功能分支上合并更新
+
+            ---
+            *此PR由GitHub Actions自动创建*
+          commit-message: '🔄 Auto sync from upstream'
+          delete-branch: true
